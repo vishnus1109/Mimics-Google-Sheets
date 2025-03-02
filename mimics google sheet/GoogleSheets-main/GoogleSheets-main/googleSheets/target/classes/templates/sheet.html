@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Spreadsheet</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        td {
+            padding: 5px;
+            border: 1px solid #ccc;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+        input {
+            width: 100%;
+            border: none;
+            text-align: center;
+            padding: 5px;
+        }
+        input:focus {
+            outline: none;
+            background-color: #f8f9fa;
+        }
+        .save-btn {
+            position: absolute;
+            right: 5px;
+            bottom: 5px;
+            font-size: 14px;
+            color: green;
+            cursor: pointer;
+        }
+        .selected {
+            background-color: #cce5ff !important;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h1 class="text-center mb-4" th:text="${sheet.name}"></h1>
+
+        <div class="row mb-4 text-center">
+            <label for="operation">Select Operation:</label>
+            <select id="operation" class="form-control d-inline w-25">
+				<option value="none">None</option>
+                <option value="sum">Sum</option>
+                <option value="count">Count</option>
+                <option value="avg">Average</option>
+                <option value="max">Max</option>
+                <option value="min">Min</option>
+            </select>
+            <label for="stringFunction" class="ml-2">String Function:</label>
+            <select id="stringFunction" class="form-control d-inline w-25">
+                <option value="none">None</option>
+                <option value="trim">Trim</option>
+                <option value="upper">Uppercase</option>
+                <option value="lower">Lowercase</option>
+                <option value="remove_duplicate">Remove Duplicates</option>
+                <option value="find_replace">Find and Replace</option>
+            </select>
+            <button id="applyOperation" class="btn btn-primary ml-2">Apply Operation</button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered text-center" id="spreadsheetTable">
+                <tr th:each="row : ${#numbers.sequence(0, 9)}">
+                    <td th:each="col : ${#numbers.sequence(0, 9)}">
+                        <input type="text" class="cell-input form-control d-inline w-100"
+                               th:value="${(cells != null and cells[row] != null and cells[row][col] != null) ? cells[row][col].value : ''}"
+                               data-row="${row}" data-col="${col}">
+                        <span class="save-btn">✔</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="result" class="text-center mt-4"></div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            let selectedCells = [];
+            let isMouseDown = false;
+
+            // Mouse down to select cells
+            $("#spreadsheetTable td").mousedown(function (e) {
+                if (!$(e.target).is("input")) {
+                    e.preventDefault();
+                }
+                isMouseDown = true;
+                if (!e.ctrlKey) {
+                    $("#spreadsheetTable td").removeClass("selected");
+                    selectedCells = [];
+                }
+                if (!$(e.target).is("input")) {
+                    selectCell($(this));
+                }
+            });
+
+            // Mouse over to select cells while dragging
+            $("#spreadsheetTable td").mouseover(function () {
+                if (isMouseDown && !$(this).find("input").is(":focus")) {
+                    selectCell($(this));
+                }
+            });
+
+            // Mouse up to stop dragging
+            $(document).mouseup(function () {
+                isMouseDown = false;
+            });
+
+            function selectCell(cell) {
+                if (!cell.hasClass("selected")) {
+                    cell.addClass("selected");
+                    selectedCells.push({ row: cell.closest("tr").index(), col: cell.index() });
+                }
+            }
+
+            $(".cell-input").click(function (e) {
+                e.stopPropagation();
+            });
+
+            // Apply selected operation
+            $("#applyOperation").click(function () {
+                if (selectedCells.length === 0) {
+                    alert("Please select cells first.");
+                    return;
+                }
+
+                let operation = $("#operation").val();
+                let stringFunction = $("#stringFunction").val();
+                let values = [];
+                let isValid = true;
+
+                // First, apply the string function to the selected cells if any
+                selectedCells.forEach(function (cell) {
+                    let value = $("tr").eq(cell.row).find("td").eq(cell.col).find("input").val();
+                    
+                    // Apply the string function if necessary
+                    if (stringFunction !== "none") {
+                        value = applyStringFunction(value, stringFunction);
+                        // Update the cell with the modified string
+                        $("tr").eq(cell.row).find("td").eq(cell.col).find("input").val(value);
+                    }
+
+                    // Now, check for numeric operations (sum, count, etc.)
+                    if (operation !== "none" && (operation === "sum" || operation === "count" || operation === "avg" || operation === "max" || operation === "min")) {
+                        if (value.trim() !== "" && !isNaN(value)) {
+                            values.push(parseFloat(value));
+                        } else if (value.trim() !== "" && isNaN(value)) {
+                            // If the value is not a number and the operation is numeric, set isValid to false
+                            isValid = false;
+                        }
+                    }
+                });
+
+               /* if (!isValid) {
+                    alert("Please enter valid numbers for the selected operation.");
+                    return;
+                }*/
+
+                let result = 0;
+                if (values.length > 0) {
+                    switch (operation) {
+                        case "sum":
+                            result = values.reduce((acc, val) => acc + val, 0);
+                            break;
+                        case "count":
+                            result = values.length;
+                            break;
+                        case "avg":
+                            result = values.reduce((acc, val) => acc + val, 0) / values.length;
+                            break;
+                        case "max":
+                            result = Math.max(...values);
+                            break;
+                        case "min":
+                            result = Math.min(...values);
+                            break;
+                    }
+                    $("#result").html("Result: " + result);
+                } else {
+                    alert("No valid numbers selected.");
+                }
+            });
+
+            // String function to be applied
+            function applyStringFunction(value, func) {
+                switch (func) {
+                    case "trim":
+                        return value.trim();
+                    case "upper":
+                        return value.toUpperCase();
+                    case "lower":
+                        return value.toLowerCase();
+                    case "remove_duplicate":
+                        return value.split('').filter((v, i, a) => a.indexOf(v) === i).join('');
+                    case "find_replace":
+                        let find = prompt("Enter the string to find:");
+                        let replace = prompt("Enter the string to replace it with:");
+                        return value.replace(new RegExp(find, 'g'), replace);
+                    default:
+                        return value;
+                }
+            }
+
+            // Save the updated cell value
+            $(".save-btn").on("click", function () {
+                var cell = $(this).closest("td");
+                var rowIndex = cell.index();
+                var colIndex = cell.closest("tr").index();
+                var value = cell.find("input").val();
+                var sheetId = "1"; // Example, change this as needed
+
+                $.post("/sheets/" + sheetId + "/update", {
+                    rowIndex: rowIndex,
+                    columnIndex: colIndex,
+                    value: value
+                }, function () {
+                    alert("Cell updated successfully!");
+                }).fail(function () {
+                    alert("Error updating cell.");
+                });
+            });
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

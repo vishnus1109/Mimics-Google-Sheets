@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Google Sheets</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Google Sheets</h1>
+
+        <!-- Create New Sheet Form -->
+        <div class="card shadow p-4">
+            <form action="/sheets/create" method="post" class="d-flex">
+                <input type="text" name="name" class="form-control me-2" placeholder="Enter sheet name..." required>
+                <button type="submit" class="btn btn-primary">Create Sheet</button>
+            </form>
+        </div>
+
+        <!-- Sheets List -->
+        <div class="mt-4">
+            <h4 class="mb-3">Available Sheets</h4>
+            <table class="table table-hover shadow-sm bg-white rounded">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Sheet Name</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="sheet : ${sheets}">
+                        <td>
+                            <a th:href="@{/sheets/{id}(id=${sheet.id})}" th:text="${sheet.name}" class="text-decoration-none"></a>
+                        </td>
+                        <td class="text-end">
+                            <a th:href="@{/sheets/{id}(id=${sheet.id})}" class="btn btn-success btn-sm">Open</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
